@@ -7,6 +7,11 @@
 
 // The maximum number of threads.
 #define THREAD_MAX 100
+#define FROM_thread_yeild 1
+#define FROM_read_lock 2
+#define FROM_write_lock 3
+#define FROM_thread_sleep 4
+#define FROM_thread_exit 5
 
 
 void sighandler(int signum);
@@ -33,10 +38,12 @@ extern struct tcb *idle_thread;
 struct tcb_queue {
     struct tcb *arr[THREAD_MAX];  // The circular array.
     int head;                     // The index of the head of the queue
-    int size;
+    int tail;
+    int size;//may not be used in the future
 };
 
 extern struct tcb_queue ready_queue, waiting_queue;
+extern struct tcb *sleeping_set[THREAD_MAX];
 
 
 // The rwlock structure.
@@ -60,44 +67,140 @@ extern jmp_buf sched_buf;
 
 // TODO::
 // You should setup your own sleeping set as well as finish the marcos below
-#define thread_create(func, t_id, t_args)                                              \
-    ({                                                                                 \
+#define thread_create(func, t_id, t_args) \
+    func(t_id, t_args)
+
+#define thread_setup(t_id, t_args)                                              \
+    ({                                                                          \
+        struct tcb *new_thread = (struct tcb*)malloc(sizeof(struct tcb));       \
+        if(!new_thread) {                                                       \
+            perror("Failed to allocate memory for TCB.\n");                     \
+            exit(1);                                                            \
+        }                                                                       \
+        new_thread->id = t_id;                                                  \
+        new_thread->args = t_args;                                              \
+        if(!setjmp(new_thread->env)) {                                          \
+            printf("thread %d: set up routine %s\n", t_id, __func__);           \
+            if(t_id != 0){                                                      \
+                if((ready_queue.tail +1) % THREAD_MAX == ready_queue.head){     \
+                    fprintf(stderr, "ready_queue overflow.\n");                 \
+                    exit(1);                                                    \
+                }                                                               \
+                ready_queue.arr[ready_queue.tail] = new_thread;             \
+                ready_queue.tail = (ready_queue.tail +1 ) % THREAD_MAX;         \
+                ready_queue.size++;                                             \
+            } else {                                                            \
+                idle_thread = new_thread;                                       \
+            }                                                                   \
+            return;                                                             \
+        }                                                                       \
     })
 
-#define thread_setup(t_id, t_args)                                                     \
-    ({                                                                                 \
+#define thread_yield()                                                          \
+    ({                                                                          \
+        if (setjmp(current_thread->env) == 0) {                                     \
+            /* unblock SIGTSTP */                                                   \
+            sigset_t sig_unblock_tstp;                                              \
+            sigemptyset(&sig_unblock_tstp);                                         \
+            sigaddset(&sig_unblock_tstp, SIGTSTP);                                  \
+            sigprocmask(SIG_UNBLOCK, &sig_unblock_tstp, NULL);                       \
+                                                                                    \
+            /* block SIGTSTP */                                                     \
+            sigset_t sig_block_tstp;                                                \
+            sigemptyset(&sig_block_tstp);                                           \
+            sigaddset(&sig_block_tstp, SIGTSTP);                                    \
+            sigprocmask(SIG_BLOCK, &sig_block_tstp, NULL);                         \
+                                                                                    \
+            /* unblock SIGALRM */                                                  \
+            sigset_t sig_unblock_alrm;                                              \
+            sigemptyset(&sig_unblock_alrm);                                           \
+            sigaddset(&sig_unblock_alrm, SIGALRM);                                    \
+            sigprocmask(SIG_UNBLOCK, &sig_unblock_alrm, NULL);                           \
+                                                                                    \
+            /* block SIGALRM */                                                     \
+            sigset_t sig_block_alrm;                                                \
+            sigemptyset(&sig_block_alrm);                                              \
+            sigaddset(&sig_block_alrm, SIGALRM);                                    \
+            sigprocmask(SIG_BLOCK, &sig_block_alrm, NULL);                          \
+                                                                                    \
+            /* jump to the scheduler */                                             \
+            longjmp(sched_buf, FROM_thread_yeild);                                                  \
+        }                                                                           \
     })
 
-#define thread_yield()                                  \
-    ({                                                  \
+#define read_lock()                                                                 \
+    ({                                                                              \
+        while(1){                                                                   \
+            if(rwlock.write_count == 0) {                                           \
+                &rwlock.read_count++;                        \
+                break;                                                              \
+            } else {                                                                \
+                if (setjmp(current_thread->env) == 0) {                             \
+                    current_thread->waiting_for = 1;                                \
+                    waiting_queue.arr[waiting_queue.tail] = current_thread;         \
+                    waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
+                    waiting_queue.size++;                                           \
+                    longjmp(sched_buf, FROM_read_lock);                                          \
+                }                                                                   \
+            }                                                                       \
+        }                                                                           \
     })
 
-#define read_lock()                                                      \
-    ({                                                                   \
+#define write_lock()                                                                \
+    ({                                                                              \
+        while(1) {                                                                  \
+            if(rwlock.read_count == 0 && rwlock.write_count == 0) {                 \
+                &rwlock.write_count++;                       \
+                break;                                                              \
+            } else {                                                                \
+                if (setjmp(current_thread->env) == 0) {                             \
+                    current_thread->waiting_for = 2; /* waiting for write */        \
+                    waiting_queue.arr[waiting_queue.tail] = current_thread;         \
+                    waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
+                    waiting_queue.size++;                                           \
+                    longjmp(sched_buf, FROM_write_lock);                                          \
+                }                                                                   \
+            }                                                                       \
+        }                                                                           \  
     })
 
-#define write_lock()                                                     \
-    ({                                                                   \
+#define read_unlock()                                                               \
+    ({                                                                              \
+        &rwlock.read_count--;                                                       \  
     })
 
-#define read_unlock()                                                                 \
-    ({                                                                                \
+#define write_unlock()                                                              \
+    ({                                                                              \
+        &rwlock.write_count--;                                                      \
     })
 
-#define write_unlock()                                                                \
-    ({                                                                                \
+#define thread_sleep(sec)                                                           \
+    ({                                                                              \
+        if (sec <1 || sec >10) {                                                    \
+            fprintf(stderr, "thread_sleep: Invalid sleep duration\n");              \
+            exit(1);                                                                \
+        }                                                                           \
+        current_thread->sleep_time = sec * time_slice;                              \
+        sleeping_set[current_thread->id] = current_thread;                          \
+        current_thread = NULL;                                                      \
+        longjmp(sched_buf, FROM_thread_sleep);                                                      \
     })
 
-#define thread_sleep(sec)                                            \
-    ({                                                               \
+#define thread_awake(t_id)                                                          \
+    ({                                                                              \
+        struct tcb* thread = sleeping_set[t_id];                                    \
+        if (thread && thread->sleeping_time <= 0) {                                 \
+            sleeping_set[t_id] = NULL;                                              \
+            ready_queue.arr[ready_queue.tail] = thread;                             \
+            ready_queue.tail = (ready_queue.tail +1) % THREAD_MAX;                  \
+            ready_queue.size++;                                                     \
+        }                                                                           \  
     })
 
-#define thread_awake(t_id)                                                        \
-    ({                                                                            \
-    })
-
-#define thread_exit()                                    \
-    ({                                                   \
+#define thread_exit()                                                               \
+    ({                                                                              \
+        printf("thread %d: exit\n", current_thread->id);                            \
+        longjmp(sched_buf, FROM_thread_exit);                                                      \
     })
 
 #endif  // THREAD_TOOL_H

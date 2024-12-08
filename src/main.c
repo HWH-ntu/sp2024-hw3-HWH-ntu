@@ -10,7 +10,6 @@
 
 struct tcb *current_thread, *idle_thread;
 struct tcb_queue ready_queue, waiting_queue;
-struct tcb *sleeping_set[THREAD_MAX];
 struct rwlock rwlock;
 int q_p, q_s;
 int time_slice;
@@ -114,7 +113,7 @@ void start_threading() {
     scheduler();
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {    
     unbuffered_io();
     init_signal();
 
@@ -122,6 +121,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "usage: <time_slice> <q_p> <q_s> are not provided\n");
         exit(1);
     }
+
+    // parse arguments for time slice and quotes
     time_slice = atoi(argv[1]);
     q_p = atoi(argv[2]);
     q_s = atoi(argv[3]);
@@ -131,7 +132,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    // Spawn threads using the global ready queue
     spawn_thread(argc, argv);
 
+    // start threading
     start_threading();
 }
