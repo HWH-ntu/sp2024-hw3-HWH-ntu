@@ -76,6 +76,15 @@ extern int time_slice;
 // The long jump buffer for the scheduler.
 extern jmp_buf sched_buf;
 
+#define DEBUGLOG(fmt, ...) \
+    ({ \
+        if (DEBUG) \
+            printf("\033[1;34m[%s:%d:%s][tid:%d]: " fmt "\033[0m\n", \
+                    __FILE__, __LINE__, __func__, \
+                    current_thread ? current_thread->id : -1, \
+                    ##__VA_ARGS__); \
+    })
+
 // TODO::
 // You should setup your own sleeping set as well as finish the marcos below
 #define thread_create(func, t_id, t_args) \
