@@ -12,11 +12,11 @@ void idle(int id, int *args) {
     thread_setup(id, args);
     //perror("idel: after thread_setup\n");
 
+    // step 1: print idle message
+    printf("thread %d: idle\n", id);
+
     // the idle routine runs indefinitely
     while(1) {
-        // step 1: print idle message
-        printf("​​​​​​thread %d: idle", id);
-
         // step 2: sleep for 1 second
         sleep(1);
 
