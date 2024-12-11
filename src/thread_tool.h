@@ -157,11 +157,7 @@ extern jmp_buf sched_buf;
                 rwlock.read_count++;                                               \
                 break;                                                              \
             } else {                                                                \
-                if (setjmp(current_thread->env) == 0) {                             \
-                    current_thread->waiting_for = 1;                                \
-                    waiting_queue.arr[waiting_queue.tail] = current_thread;         \
-                    waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
-                    waiting_queue.size++;                                           \
+                if (setjmp(current_thread->env) == 0) {                                     \
                     longjmp(sched_buf, FROM_read_lock);                             \
                 }                                                                   \
             }                                                                       \
@@ -176,10 +172,6 @@ extern jmp_buf sched_buf;
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
-                    current_thread->waiting_for = 2; /* waiting for write */        \
-                    waiting_queue.arr[waiting_queue.tail] = current_thread;         \
-                    waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
-                    waiting_queue.size++;                                           \
                     longjmp(sched_buf, FROM_write_lock);                            \
                 }                                                                   \
             }                                                                       \

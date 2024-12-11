@@ -101,6 +101,7 @@ void scheduler() {
 
         if (resource_available) {
             // Remove from waiting queue
+            thread->waiting_for = 0;
             waiting_queue.head = (waiting_queue.head + 1) % THREAD_MAX;
             waiting_queue.size--;
 
@@ -136,7 +137,14 @@ void scheduler() {
             break;
 
         case FROM_read_lock:
+            current_thread->waiting_for = 1;
+            waiting_queue.arr[waiting_queue.tail] = current_thread;
+            waiting_queue.tail = (waiting_queue.tail + 1) % THREAD_MAX;
+            waiting_queue.size++;
+            if (DEBUG) fprintf(stderr, "Thread %d: Waiting for resource and moved to waiting queue\n", current_thread->id);
+            break;
         case FROM_write_lock:
+            current_thread->waiting_for = 2;
             waiting_queue.arr[waiting_queue.tail] = current_thread;
             waiting_queue.tail = (waiting_queue.tail + 1) % THREAD_MAX;
             waiting_queue.size++;
