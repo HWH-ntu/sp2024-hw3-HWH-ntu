@@ -30,15 +30,7 @@ void scheduler() {
 
     if(!initialized) {
         // initialize the idel thread
-        idle_thread = (struct tcb*)malloc(sizeof(struct tcb));
-        if(!idle_thread) {
-            perror("Failed to allocate memory for idle thread");
-            exit(1);
-        }
-        idle_thread->id = 0;
-        idle_thread->args = NULL;
-
-        thread_create(idle, idle_thread->id, idle_thread->args);
+        thread_create(idle, 0, NULL);
 
         // Save scheduler context in sched_buf
         if (setjmp(sched_buf) == 0) {
