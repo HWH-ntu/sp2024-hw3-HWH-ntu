@@ -154,11 +154,13 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1){                                                                   \
             if(rwlock.write_count == 0) {                                           \
-                rwlock.read_count++;                                               \
+                rwlock.read_count++;                                                \
                 break;                                                              \
             } else {                                                                \
-                if (setjmp(current_thread->env) == 0) {                                     \
+                if (setjmp(current_thread->env) == 0) {                             \
                     longjmp(sched_buf, FROM_read_lock);                             \
+                } else {                                                            \
+                    break;                                                          \
                 }                                                                   \
             }                                                                       \
         }                                                                           \
@@ -168,11 +170,13 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1) {                                                                  \
             if(rwlock.read_count == 0 && rwlock.write_count == 0) {                 \
-                rwlock.write_count++;                                              \
+                rwlock.write_count++;                                               \
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
                     longjmp(sched_buf, FROM_write_lock);                            \
+                } else {                                                            \
+                    break;                                                          \
                 }                                                                   \
             }                                                                       \
         }                                                                           \
