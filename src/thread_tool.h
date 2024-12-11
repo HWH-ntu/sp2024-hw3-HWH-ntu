@@ -70,61 +70,61 @@ extern jmp_buf sched_buf;
 #define thread_create(func, t_id, t_args) \
     func(t_id, t_args)
 
-#define thread_setup(t_id, t_args)                                              \
-    ({                                                                          \
-        struct tcb *new_thread = (struct tcb*)malloc(sizeof(struct tcb));       \
-        if(!new_thread) {                                                       \
-            perror("Failed to allocate memory for TCB.\n");                     \
-            exit(1);                                                            \
-        }                                                                       \
-        new_thread->id = t_id;                                                  \
-        new_thread->args = t_args;                                              \
-        if(!setjmp(new_thread->env)) {                                          \
-            printf("thread %d: set up routine %s\n", t_id, __func__);           \
-            if(t_id != 0){                                                      \
-                if((ready_queue.tail +1) % THREAD_MAX == ready_queue.head){     \
-                    fprintf(stderr, "ready_queue overflow.\n");                 \
-                    exit(1);                                                    \
-                }                                                               \
-                ready_queue.arr[ready_queue.tail] = new_thread;             \
-                ready_queue.tail = (ready_queue.tail +1 ) % THREAD_MAX;         \
-                ready_queue.size++;                                             \
-            } else {                                                            \
-                idle_thread = new_thread;                                       \
-            }                                                                   \
-            return;                                                             \
-        }                                                                       \
+#define thread_setup(t_id, t_args)                                                  \
+    ({                                                                              \
+        struct tcb *new_thread = (struct tcb*)malloc(sizeof(struct tcb));           \
+        if(!new_thread) {                                                           \
+            perror("Failed to allocate memory for TCB.\n");                         \
+            exit(1);                                                                \
+        }                                                                           \
+        new_thread->id = t_id;                                                      \
+        new_thread->args = t_args;                                                  \
+        if(!setjmp(new_thread->env)) {                                              \
+            printf("thread %d: set up routine %s\n", t_id, __func__);               \
+            if(t_id != 0){                                                          \
+                if((ready_queue.tail +1) % THREAD_MAX == ready_queue.head){         \
+                    fprintf(stderr, "ready_queue overflow.\n");                     \
+                    exit(1);                                                        \
+                }                                                                   \
+                ready_queue.arr[ready_queue.tail] = new_thread;                     \
+                ready_queue.tail = (ready_queue.tail +1 ) % THREAD_MAX;             \
+                ready_queue.size++;                                                 \
+            } else {                                                                \
+                idle_thread = new_thread;                                           \
+            }                                                                       \
+            return;                                                                 \
+        }                                                                           \
     })
 
-#define thread_yield()                                                          \
-    ({                                                                          \
+#define thread_yield()                                                              \
+    ({                                                                              \
         if (setjmp(current_thread->env) == 0) {                                     \
             /* unblock SIGTSTP */                                                   \
             sigset_t sig_unblock_tstp;                                              \
             sigemptyset(&sig_unblock_tstp);                                         \
             sigaddset(&sig_unblock_tstp, SIGTSTP);                                  \
-            sigprocmask(SIG_UNBLOCK, &sig_unblock_tstp, NULL);                       \
+            sigprocmask(SIG_UNBLOCK, &sig_unblock_tstp, NULL);                      \
                                                                                     \
             /* block SIGTSTP */                                                     \
             sigset_t sig_block_tstp;                                                \
             sigemptyset(&sig_block_tstp);                                           \
             sigaddset(&sig_block_tstp, SIGTSTP);                                    \
-            sigprocmask(SIG_BLOCK, &sig_block_tstp, NULL);                         \
+            sigprocmask(SIG_BLOCK, &sig_block_tstp, NULL);                          \
                                                                                     \
-            /* unblock SIGALRM */                                                  \
+            /* unblock SIGALRM */                                                   \
             sigset_t sig_unblock_alrm;                                              \
-            sigemptyset(&sig_unblock_alrm);                                           \
-            sigaddset(&sig_unblock_alrm, SIGALRM);                                    \
-            sigprocmask(SIG_UNBLOCK, &sig_unblock_alrm, NULL);                           \
+            sigemptyset(&sig_unblock_alrm);                                         \
+            sigaddset(&sig_unblock_alrm, SIGALRM);                                  \
+            sigprocmask(SIG_UNBLOCK, &sig_unblock_alrm, NULL);                      \
                                                                                     \
             /* block SIGALRM */                                                     \
             sigset_t sig_block_alrm;                                                \
-            sigemptyset(&sig_block_alrm);                                              \
+            sigemptyset(&sig_block_alrm);                                           \
             sigaddset(&sig_block_alrm, SIGALRM);                                    \
             sigprocmask(SIG_BLOCK, &sig_block_alrm, NULL);                          \
                                                                                     \
             /* jump to the scheduler */                                             \
-            longjmp(sched_buf, FROM_thread_yeild);                                                  \
+            longjmp(sched_buf, FROM_thread_yeild);                                  \
         }                                                                           \
     })
 
@@ -132,7 +132,7 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1){                                                                   \
             if(rwlock.write_count == 0) {                                           \
-                &rwlock.read_count++;                        \
+                &rwlock.read_count++;                                               \
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
@@ -140,7 +140,7 @@ extern jmp_buf sched_buf;
                     waiting_queue.arr[waiting_queue.tail] = current_thread;         \
                     waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
                     waiting_queue.size++;                                           \
-                    longjmp(sched_buf, FROM_read_lock);                                          \
+                    longjmp(sched_buf, FROM_read_lock);                             \
                 }                                                                   \
             }                                                                       \
         }                                                                           \
@@ -150,7 +150,7 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1) {                                                                  \
             if(rwlock.read_count == 0 && rwlock.write_count == 0) {                 \
-                &rwlock.write_count++;                       \
+                &rwlock.write_count++;                                              \
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
@@ -158,15 +158,15 @@ extern jmp_buf sched_buf;
                     waiting_queue.arr[waiting_queue.tail] = current_thread;         \
                     waiting_queue.tail = (waiting_queue.tail +1) % THREAD_MAX;      \
                     waiting_queue.size++;                                           \
-                    longjmp(sched_buf, FROM_write_lock);                                          \
+                    longjmp(sched_buf, FROM_write_lock);                            \
                 }                                                                   \
             }                                                                       \
-        }                                                                           \  
+        }                                                                           \
     })
 
 #define read_unlock()                                                               \
     ({                                                                              \
-        &rwlock.read_count--;                                                       \  
+        &rwlock.read_count--;                                                       \
     })
 
 #define write_unlock()                                                              \
@@ -183,7 +183,7 @@ extern jmp_buf sched_buf;
         current_thread->sleep_time = sec * time_slice;                              \
         sleeping_set[current_thread->id] = current_thread;                          \
         current_thread = NULL;                                                      \
-        longjmp(sched_buf, FROM_thread_sleep);                                                      \
+        longjmp(sched_buf, FROM_thread_sleep);                                      \
     })
 
 #define thread_awake(t_id)                                                          \
@@ -194,13 +194,13 @@ extern jmp_buf sched_buf;
             ready_queue.arr[ready_queue.tail] = thread;                             \
             ready_queue.tail = (ready_queue.tail +1) % THREAD_MAX;                  \
             ready_queue.size++;                                                     \
-        }                                                                           \  
+        }                                                                           \
     })
 
 #define thread_exit()                                                               \
     ({                                                                              \
         printf("thread %d: exit\n", current_thread->id);                            \
-        longjmp(sched_buf, FROM_thread_exit);                                                      \
+        longjmp(sched_buf, FROM_thread_exit);                                       \
     })
 
 #endif  // THREAD_TOOL_H
