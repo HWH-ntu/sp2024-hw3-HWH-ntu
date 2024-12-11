@@ -133,7 +133,7 @@ void enroll(int id, int *args) {
     if ((current_thread->pp > current_thread->ps) || 
         (current_thread->pp == current_thread->ps && current_thread->dp > current_thread->ds)) {
         // Prefer pj_class
-        if (current_thread->qp > 0) {
+        if (q_p > 0) {
             q_p--; // Enroll in pj_class
             current_thread->class_enrolled = "pj_class";
         } else {
@@ -142,7 +142,7 @@ void enroll(int id, int *args) {
         }
     } else {
         // Prefer sw_class
-        if (current_thread->qs > 0) {
+        if (q_s > 0) {
             q_s--; // Enroll in sw_class
             current_thread->class_enrolled = "sw_class";
         } else {
