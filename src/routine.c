@@ -95,10 +95,10 @@ void enroll(int id, int *args) {
     thread_setup(id, args);
 
     // Parse arguments and save them in the thread's tcb
-    current_thread->dp = args[0]; // Desire for pj_class
-    current_thread->ds = args[1]; // Desire for sw_class
-    current_thread->sleep_time = args[2]; // Sleep time
-    current_thread->best_friend_id = args[3]; // Best friend's thread ID
+    current_thread->dp = current_thread->args[0]; // Desire for pj_class
+    current_thread->ds = current_thread->args[1]; // Desire for sw_class
+    current_thread->sleep_time = current_thread->args[2]; // Sleep time
+    current_thread->best_friend_id = current_thread->args[3]; // Best friend's thread ID
 
     // Step 2: Simulate oversleeping
     printf("thread %d: sleep %d\n", id, current_thread->sleep_time);
@@ -109,7 +109,7 @@ void enroll(int id, int *args) {
 
     // Acquire the read lock and record class quotas
     read_lock();
-    printf("thread %d: acquire read lock\n", id);
+    printf("thread %d: acquire read lock\n", current_thread->id);
 
     // Save current quotas in the thread's tcb
     current_thread->qp = q_p; // Remaining spots in pj_class
