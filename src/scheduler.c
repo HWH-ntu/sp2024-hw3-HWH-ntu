@@ -20,7 +20,7 @@ void sighandler(int signum) { // signal handler to catch 'SIGALRM' or 'SIGTSTP'
     }
 
     // switch to the scheduler context
-    longjmp(sched_buf, FROM_thread_yield);
+    longjmp(sched_buf, FROM_sighandler);
 }
 
 // TODO::
@@ -38,18 +38,13 @@ void scheduler() {
         idle_thread->id = 0;
         idle_thread->args = NULL;
 
-        if (setjmp(idle_thread->env) == 0) {// setjmp not zero-->longjmp
-            idle(idle_thread->id, NULL);
-            //printf("scheduler: initialized idle thread\n");
+        thread_create(idle, idle_thread->id, idle_thread->args);
 
-            // Save scheduler context in sched_buf
-            if (setjmp(sched_buf) == 0) {
-                initialized = 1;
-                return;
-            }
+        // Save scheduler context in sched_buf
+        if (setjmp(sched_buf) == 0) {
+            initialized = 1;
         }
     }
-    perror("After initialization\n");
 
     while(1) {
         // Step 1: Reset the alarm
@@ -95,7 +90,7 @@ void scheduler() {
                     ready_queue.tail = (ready_queue.tail +1) % THREAD_MAX;
                     ready_queue.size++;
 
-                    printf("thread %d: woken up and moved to ready queue\n", thread->id);               
+                    if (DEBUG) fprintf(stderr, "thread %d: Step 3: manage sleeping threads\n", thread->id);               
                 }
             }
         }
@@ -128,7 +123,7 @@ void scheduler() {
                 ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
                 ready_queue.size++;
 
-                printf("Thread %d: Moved from waiting queue to ready queue\n", thread->id);
+                if (DEBUG) fprintf(stderr, "Thread %d: Step 4: Handle waiting threads\n", thread->id);
             } else {
                 // Recycle the thread to the end of the waiting queue
                 waiting_queue.head = (waiting_queue.head + 1) % THREAD_MAX;
@@ -142,12 +137,13 @@ void scheduler() {
         if (source != 0) {
             // Determine the source of the jump
             switch (source) {
+                case FROM_sighandler:
                 case FROM_thread_yield:
                     if (current_thread && current_thread != idle_thread) {
                         ready_queue.arr[ready_queue.tail] = current_thread;
                         ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
                         ready_queue.size++;
-                        printf("Thread %d: Yielded and moved to ready queue\n", current_thread->id);
+                        if (DEBUG) fprintf(stderr, "Thread %d: Step 5: Handle previously running threads\n", current_thread->id);
                     }
                     break;
 
@@ -156,17 +152,17 @@ void scheduler() {
                     waiting_queue.arr[waiting_queue.tail] = current_thread;
                     waiting_queue.tail = (waiting_queue.tail + 1) % THREAD_MAX;
                     waiting_queue.size++;
-                    printf("Thread %d: Waiting for resource and moved to waiting queue\n", current_thread->id);
+                    if (DEBUG) fprintf(stderr, "Thread %d: Waiting for resource and moved to waiting queue\n", current_thread->id);
                     break;
 
                 case FROM_thread_sleep:
                     // Thread already in the sleeping set; no action required
-                    printf("Thread %d: Sleeping\n", current_thread->id);
+                    if (DEBUG) fprintf(stderr, "Thread %d: Sleeping\n", current_thread->id);
                     break;
 
                 case FROM_thread_exit:
                     // Free resources and do not add back to any queue
-                    printf("Thread %d: Exited and resources freed\n", current_thread->id);
+                    if (DEBUG) fprintf(stderr, "Thread %d: Exited and resources freed\n", current_thread->id);
                     free(current_thread->args);
                     free(current_thread);
                     current_thread = NULL;
@@ -183,7 +179,8 @@ void scheduler() {
             current_thread = ready_queue.arr[ready_queue.head];
             ready_queue.head = (ready_queue.head +1) % THREAD_MAX;
             ready_queue.size--;
-            longjmp(current_thread->env, FROM_thread_yield); // context switch to the selected thread
+            if (DEBUG) fprintf(stderr, "Step 6: Ready to run: %d\n", current_thread->id);
+            longjmp(current_thread->env, FROM_scheduler); // context switch to the selected thread
         }
 
         // If no threads are ready, check sleeping_set and schedule idle thread
@@ -197,9 +194,9 @@ void scheduler() {
 
         if (any_sleeping && idle_thread) {
             current_thread = idle_thread;
-            longjmp(idle_thread->env, FROM_thread_yield);
+            longjmp(idle_thread->env, FROM_scheduler);
         } else {
-            printf("Scheduler: No more threads, exiting.\n");
+            if (DEBUG) fprintf(stderr, "Scheduler: No more threads, exiting.\n");
             free(idle_thread);
             idle_thread = NULL;
             return;

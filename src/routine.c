@@ -8,7 +8,9 @@
 
 void idle(int id, int *args) {
     // start with thread setup
+    //perror("idle: before thread_setup\n");
     thread_setup(id, args);
+    //perror("idel: after thread_setup\n");
 
     // the idle routine runs indefinitely
     while(1) {

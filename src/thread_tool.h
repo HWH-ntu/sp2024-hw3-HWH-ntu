@@ -12,7 +12,11 @@
 #define FROM_write_lock 3
 #define FROM_thread_sleep 4
 #define FROM_thread_exit 5
+#define FROM_sighandler 6
 
+#define FROM_scheduler 9
+
+#define DEBUG 1
 
 void sighandler(int signum);
 void scheduler();
@@ -87,7 +91,7 @@ extern jmp_buf sched_buf;
         new_thread->id = t_id;                                                      \
         new_thread->args = t_args;                                                  \
         if(!setjmp(new_thread->env)) {                                              \
-            printf("thread %d: set up routine %s\n", t_id, __func__);               \
+            if (DEBUG) printf("thread %d: set up routine %s\n", t_id, __func__);               \
             if(t_id != 0){                                                          \
                 if((ready_queue.tail +1) % THREAD_MAX == ready_queue.head){         \
                     fprintf(stderr, "ready_queue overflow.\n");                     \
@@ -100,12 +104,15 @@ extern jmp_buf sched_buf;
                 idle_thread = new_thread;                                           \
             }                                                                       \
             return;                                                                 \
-        }                                                                           \
+        } else {\
+            if (DEBUG) printf("In Thread_setup: setjmp else. cur thr id:%d\n", current_thread->id);\
+        }                                                                          \
     })
 
 #define thread_yield()                                                              \
     ({                                                                              \
         if (setjmp(current_thread->env) == 0) {                                     \
+            if (DEBUG) printf("Thread_Yield: in setjmp0 . Cur thr id:%d\n", current_thread->id);\
             /* unblock SIGTSTP */                                                   \
             sigset_t sig_unblock_tstp;                                              \
             sigemptyset(&sig_unblock_tstp);                                         \
@@ -129,10 +136,9 @@ extern jmp_buf sched_buf;
             sigemptyset(&sig_block_alrm);                                           \
             sigaddset(&sig_block_alrm, SIGALRM);                                    \
             sigprocmask(SIG_BLOCK, &sig_block_alrm, NULL);                          \
-                                                                                    \
-            /* jump to the scheduler */                                             \
-            longjmp(sched_buf, FROM_thread_yield);                                  \
-        }                                                                           \
+        } else {                                                                    \
+            if (DEBUG) printf("Thread_Yield: in setjmp else, cur_thr_id:%d\n", current_thread->id);\
+        }                                                                         \
     })
 
 #define read_lock()                                                                 \
