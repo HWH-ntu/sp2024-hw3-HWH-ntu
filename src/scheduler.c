@@ -20,7 +20,7 @@ void sighandler(int signum) { // signal handler to catch 'SIGALRM' or 'SIGTSTP'
     }
 
     // switch to the scheduler context
-    longjmp(sched_buf, FROM_thread_yeild);
+    longjmp(sched_buf, FROM_thread_yield);
 }
 
 // TODO::
@@ -38,16 +38,18 @@ void scheduler() {
         idle_thread->id = 0;
         idle_thread->args = NULL;
 
-        if (!setjmp(idle_thread->env)) {
-            printf("scheduler: initialized idle thread\n");
+        if (setjmp(idle_thread->env) == 0) {// setjmp not zero-->longjmp
+            idle(idle_thread->id, NULL);
+            //printf("scheduler: initialized idle thread\n");
 
             // Save scheduler context in sched_buf
-            if (!setjmp(sched_buf)) {
+            if (setjmp(sched_buf) == 0) {
                 initialized = 1;
                 return;
             }
         }
     }
+    perror("After initialization\n");
 
     while(1) {
         // Step 1: Reset the alarm
@@ -140,7 +142,7 @@ void scheduler() {
         if (source != 0) {
             // Determine the source of the jump
             switch (source) {
-                case FROM_thread_yeild:
+                case FROM_thread_yield:
                     if (current_thread && current_thread != idle_thread) {
                         ready_queue.arr[ready_queue.tail] = current_thread;
                         ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
@@ -181,7 +183,7 @@ void scheduler() {
             current_thread = ready_queue.arr[ready_queue.head];
             ready_queue.head = (ready_queue.head +1) % THREAD_MAX;
             ready_queue.size--;
-            longjmp(current_thread->env, FROM_thread_yeild); // context switch to the selected thread
+            longjmp(current_thread->env, FROM_thread_yield); // context switch to the selected thread
         }
 
         // If no threads are ready, check sleeping_set and schedule idle thread
@@ -195,7 +197,7 @@ void scheduler() {
 
         if (any_sleeping && idle_thread) {
             current_thread = idle_thread;
-            longjmp(idle_thread->env, FROM_thread_yeild);
+            longjmp(idle_thread->env, FROM_thread_yield);
         } else {
             printf("Scheduler: No more threads, exiting.\n");
             free(idle_thread);

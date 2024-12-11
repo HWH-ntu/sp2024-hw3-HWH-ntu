@@ -7,7 +7,7 @@
 
 // The maximum number of threads.
 #define THREAD_MAX 100
-#define FROM_thread_yeild 1
+#define FROM_thread_yield 1
 #define FROM_read_lock 2
 #define FROM_write_lock 3
 #define FROM_thread_sleep 4
@@ -29,6 +29,13 @@ struct tcb {
     int sleeping_time;
     jmp_buf env;  // Where the scheduler should jump to.
     int n, i, f_cur, f_prev; // TODO: Add some variables you wish to keep between switches.
+    int pm_value; // plus-minus value
+
+    // Variables for Enrollment routine
+    int dp, ds, sleep_time, best_friend_id; // Parsed arguments
+    int qp, qs;                             // Recorded quotas
+    int pp, ps;                             // Computed priorities
+    char *class_enrolled;             // Class enrollment status
 };
 
 // The only one thread in the RUNNING state.
@@ -124,7 +131,7 @@ extern jmp_buf sched_buf;
             sigprocmask(SIG_BLOCK, &sig_block_alrm, NULL);                          \
                                                                                     \
             /* jump to the scheduler */                                             \
-            longjmp(sched_buf, FROM_thread_yeild);                                  \
+            longjmp(sched_buf, FROM_thread_yield);                                  \
         }                                                                           \
     })
 
@@ -132,7 +139,7 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1){                                                                   \
             if(rwlock.write_count == 0) {                                           \
-                &rwlock.read_count++;                                               \
+                rwlock.read_count++;                                               \
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
@@ -150,7 +157,7 @@ extern jmp_buf sched_buf;
     ({                                                                              \
         while(1) {                                                                  \
             if(rwlock.read_count == 0 && rwlock.write_count == 0) {                 \
-                &rwlock.write_count++;                                              \
+                rwlock.write_count++;                                              \
                 break;                                                              \
             } else {                                                                \
                 if (setjmp(current_thread->env) == 0) {                             \
@@ -166,12 +173,12 @@ extern jmp_buf sched_buf;
 
 #define read_unlock()                                                               \
     ({                                                                              \
-        &rwlock.read_count--;                                                       \
+        rwlock.read_count--;                                                       \
     })
 
 #define write_unlock()                                                              \
     ({                                                                              \
-        &rwlock.write_count--;                                                      \
+        rwlock.write_count--;                                                      \
     })
 
 #define thread_sleep(sec)                                                           \
