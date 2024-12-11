@@ -202,16 +202,18 @@ extern jmp_buf sched_buf;
             fprintf(stderr, "thread_sleep: Invalid sleep duration\n");              \
             exit(1);                                                                \
         }                                                                           \
-        current_thread->sleeping_time = sec * time_slice;                              \
-        sleeping_set[current_thread->id] = current_thread;                          \
-        current_thread = NULL;                                                      \
-        longjmp(sched_buf, FROM_thread_sleep);                                      \
+        if(setjmp(current_thread->env) == 0){                                       \
+            current_thread->sleeping_time = sec * time_slice;                       \
+            sleeping_set[current_thread->id] = current_thread;                      \
+            current_thread = NULL;                                                  \
+            longjmp(sched_buf, FROM_thread_sleep);                                  \
+        }                                                                           \
     })
 
 #define thread_awake(t_id)                                                          \
     ({                                                                              \
         struct tcb* thread = sleeping_set[t_id];                                    \
-        if (thread && thread->sleeping_time <= 0) {                                 \
+        if (thread) {                                                               \
             sleeping_set[t_id] = NULL;                                              \
             ready_queue.arr[ready_queue.tail] = thread;                             \
             ready_queue.tail = (ready_queue.tail +1) % THREAD_MAX;                  \
