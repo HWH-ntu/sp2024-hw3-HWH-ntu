@@ -202,7 +202,7 @@ extern jmp_buf sched_buf;
             fprintf(stderr, "thread_sleep: Invalid sleep duration\n");              \
             exit(1);                                                                \
         }                                                                           \
-        current_thread->sleep_time = sec * time_slice;                              \
+        current_thread->sleeping_time = sec * time_slice;                              \
         sleeping_set[current_thread->id] = current_thread;                          \
         current_thread = NULL;                                                      \
         longjmp(sched_buf, FROM_thread_sleep);                                      \
