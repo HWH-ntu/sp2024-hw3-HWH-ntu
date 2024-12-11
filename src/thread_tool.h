@@ -16,7 +16,7 @@
 
 #define FROM_scheduler 9
 
-#define DEBUG 1
+#define DEBUG 0
 
 void sighandler(int signum);
 void scheduler();
@@ -91,7 +91,7 @@ extern jmp_buf sched_buf;
         new_thread->id = t_id;                                                      \
         new_thread->args = t_args;                                                  \
         if(!setjmp(new_thread->env)) {                                              \
-            if (DEBUG) printf("thread %d: set up routine %s\n", t_id, __func__);               \
+            printf("thread %d: set up routine %s\n", t_id, __func__);               \
             if(t_id != 0){                                                          \
                 if((ready_queue.tail +1) % THREAD_MAX == ready_queue.head){         \
                     fprintf(stderr, "ready_queue overflow.\n");                     \

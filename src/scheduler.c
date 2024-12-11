@@ -133,6 +133,7 @@ void scheduler() {
         }
 
         // **Step 5: Handle previously running threads**
+        if (DEBUG) printf("before source. setjmp for thread %d\n", current_thread->id);
         int source = setjmp(sched_buf);
         if (source != 0) {
             // Determine the source of the jump
@@ -143,6 +144,7 @@ void scheduler() {
                         ready_queue.arr[ready_queue.tail] = current_thread;
                         ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
                         ready_queue.size++;
+                        current_thread = NULL;
                         if (DEBUG) fprintf(stderr, "Thread %d: Step 5: Handle previously running threads\n", current_thread->id);
                     }
                     break;
