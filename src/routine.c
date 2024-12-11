@@ -101,7 +101,7 @@ void enroll(int id, int *args) {
     current_thread->best_friend_id = current_thread->args[3]; // Best friend's thread ID
 
     // Step 2: Simulate oversleeping
-    printf("thread %d: sleep %d\n", id, current_thread->sleep_time);
+    printf("thread %d: sleep %d\n", current_thread->id, current_thread->sleep_time);
     thread_sleep(current_thread->sleep_time);
 
     // Step 3: Wake up best friend
@@ -122,7 +122,7 @@ void enroll(int id, int *args) {
     read_unlock();
     current_thread->pp = current_thread->dp * current_thread->qp; // Priority for pj_class
     current_thread->ps = current_thread->ds * current_thread->qs; // Priority for sw_class
-    printf("thread %d: release read lock, p_p = %d, p_s = %d\n", id, current_thread->pp, current_thread->ps);
+    printf("thread %d: release read lock, p_p = %d, p_s = %d\n", current_thread->id, current_thread->pp, current_thread->ps);
 
     sleep(1); // Synchronization sleep
     thread_yield();
@@ -151,14 +151,14 @@ void enroll(int id, int *args) {
         }
     }
 
-    printf("thread %d: acquire write lock, enroll in %s\n", id, current_thread->class_enrolled);
+    printf("thread %d: acquire write lock, enroll in %s\n", current_thread->id, current_thread->class_enrolled);
 
     sleep(1); // Synchronization sleep
     thread_yield();
 
     // Step 6: Release the write lock and exit
     write_unlock();
-    printf("thread %d: release write lock\n", id);
+    printf("thread %d: release write lock\n", current_thread->id);
 
     sleep(1); // Synchronization sleep
     thread_exit();
