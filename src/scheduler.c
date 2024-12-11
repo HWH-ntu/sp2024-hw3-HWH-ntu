@@ -134,46 +134,45 @@ void scheduler() {
 
         // **Step 5: Handle previously running threads**
         if (DEBUG) printf("before source. setjmp for thread %d\n", current_thread->id);
-        int source = setjmp(sched_buf);
-        if (source != 0) {
-            // Determine the source of the jump
-            switch (source) {
-                case FROM_sighandler:
-                case FROM_thread_yield:
-                    if (current_thread && current_thread != idle_thread) {
-                        ready_queue.arr[ready_queue.tail] = current_thread;
-                        ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
-                        ready_queue.size++;
-                        current_thread = NULL;
-                        if (DEBUG) fprintf(stderr, "Thread %d: Step 5: Handle previously running threads\n", current_thread->id);
-                    }
-                    break;
 
-                case FROM_read_lock:
-                case FROM_write_lock:
-                    waiting_queue.arr[waiting_queue.tail] = current_thread;
-                    waiting_queue.tail = (waiting_queue.tail + 1) % THREAD_MAX;
-                    waiting_queue.size++;
-                    if (DEBUG) fprintf(stderr, "Thread %d: Waiting for resource and moved to waiting queue\n", current_thread->id);
-                    break;
-
-                case FROM_thread_sleep:
-                    // Thread already in the sleeping set; no action required
-                    if (DEBUG) fprintf(stderr, "Thread %d: Sleeping\n", current_thread->id);
-                    break;
-
-                case FROM_thread_exit:
-                    // Free resources and do not add back to any queue
-                    if (DEBUG) fprintf(stderr, "Thread %d: Exited and resources freed\n", current_thread->id);
-                    free(current_thread->args);
-                    free(current_thread);
+        switch (setjmp(sched_buf)) {
+            case 0:
+                break;
+            case FROM_sighandler:
+            case FROM_thread_yield:
+                if (current_thread && current_thread != idle_thread) {
+                    ready_queue.arr[ready_queue.tail] = current_thread;
+                    ready_queue.tail = (ready_queue.tail + 1) % THREAD_MAX;
+                    ready_queue.size++;
                     current_thread = NULL;
-                    break;
+                    if (DEBUG) fprintf(stderr, "Thread %d: Step 5: Handle previously running threads\n", current_thread->id);
+                }
+                break;
 
-                default:
-                    fprintf(stderr, "Unknown jump source: %d\n", source);
-                    exit(1);
-            }
+            case FROM_read_lock:
+            case FROM_write_lock:
+                waiting_queue.arr[waiting_queue.tail] = current_thread;
+                waiting_queue.tail = (waiting_queue.tail + 1) % THREAD_MAX;
+                waiting_queue.size++;
+                if (DEBUG) fprintf(stderr, "Thread %d: Waiting for resource and moved to waiting queue\n", current_thread->id);
+                break;
+
+            case FROM_thread_sleep:
+                // Thread already in the sleeping set; no action required
+                if (DEBUG) fprintf(stderr, "Thread %d: Sleeping\n", current_thread->id);
+                break;
+
+            case FROM_thread_exit:
+                // Free resources and do not add back to any queue
+                if (DEBUG) fprintf(stderr, "Thread %d: Exited and resources freed\n", current_thread->id);
+                free(current_thread->args);
+                free(current_thread);
+                current_thread = NULL;
+                break;
+
+            default:
+                //fprintf(stderr, "Unknown jump source: %d\n", source);
+                exit(1);
         }
 
         // Step 6: Select the next thread to run
